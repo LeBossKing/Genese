@@ -1,0 +1,372 @@
+openapi: 3.0.3
+info:
+  title: GENESE Backend API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+tags:
+  - name: Auth
+  - name: Users
+  - name: Consents
+  - name: Bilans
+  - name: Programmes
+  - name: Seances
+  - name: Dashboard
+  - name: Exercices
+  - name: Alerts
+  - name: Notifications
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string, example: "BAD_REQUEST" }
+            message: { type: string }
+            details: { type: object, nullable: true }
+    AuthTokens:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        subjectType: { type: string, enum: [USER, ADMIN] }
+        role: { type: string }
+    SignupRequest:
+      type: object
+      required: [email, mot_de_passe]
+      properties:
+        email: { type: string, format: email }
+        mot_de_passe: { type: string, minLength: 8 }
+        prenom: { type: string }
+    LoginRequest:
+      type: object
+      required: [email, mot_de_passe]
+      properties:
+        email: { type: string, format: email }
+        mot_de_passe: { type: string }
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+    UserMeUpdate:
+      type: object
+      properties:
+        prenom: { type: string }
+        age: { type: integer, minimum: 10, maximum: 100 }
+        genre: { type: string }
+        metier: { type: string }
+        objectif_principal: { type: string }
+        temps_disponible: { type: string }
+        lieu_pratique: { type: string }
+        niveau_activite: { type: string }
+        statut_compte: { type: string }
+    ExperienceDigitaleUpdate:
+      type: object
+      properties:
+        frequence_telephone: { type: string }
+        preference_notification: { type: string }
+        duree_attention_max: { type: string }
+        contexte_utilisation: { type: string }
+    ExperienceSportiveUpdate:
+      type: object
+      properties:
+        historique_AP: { type: string }
+        niveau_ressenti: { type: integer, minimum: 1, maximum: 10 }
+        rapport_douleur: { type: string }
+        croyance_principale: { type: string }
+        commentaire_croyance: { type: string }
+    ConsentPost:
+      type: object
+      required: [type_consentement, version_document]
+      properties:
+        type_consentement: { type: string }
+        version_document: { type: string }
+    ResultatTestInput:
+      type: object
+      required: [type_test, zone_corps, amplitude, fluidite, sensation, asymetrie_flag, douleur_nrs]
+      properties:
+        type_test: { type: string }
+        zone_corps: { type: string }
+        amplitude: { type: string }
+        fluidite: { type: string }
+        sensation: { type: string }
+        asymetrie_flag: { type: boolean }
+        douleur_nrs: { type: integer, minimum: 0, maximum: 10 }
+        duree_equilibre_sec: { type: integer, nullable: true }
+    BilanCreate:
+      type: object
+      required: [type_bilan, date_bilan, tests]
+      properties:
+        type_bilan: { type: string }
+        date_bilan: { type: string, format: date }
+        tests:
+          type: array
+          items: { $ref: "#/components/schemas/ResultatTestInput" }
+    ProgrammeGenerate:
+      type: object
+      required: [bilan_id]
+      properties:
+        bilan_id: { type: string }
+    FeedbackCreate:
+      type: object
+      required: [rpe, douleur_nrs_post, ressenti_general]
+      properties:
+        rpe: { type: integer, minimum: 1, maximum: 10 }
+        douleur_nrs_post: { type: integer, minimum: 0, maximum: 10 }
+        ressenti_general: { type: string }
+        commentaire_libre: { type: string }
+    ExerciceUpsert:
+      type: object
+      required: [titre, description, phase_cible, zone_cible, niveau_min, niveau_max, url_video, duree_recommandee_sec, valide_securite]
+      properties:
+        titre: { type: string }
+        description: { type: string }
+        phase_cible: { type: string }
+        zone_cible: { type: string }
+        niveau_min: { type: integer }
+        niveau_max: { type: integer }
+        url_video: { type: string }
+        duree_recommandee_sec: { type: integer }
+        valide_securite: { type: boolean }
+paths:
+  /auth/signup:
+    post:
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SignupRequest" }
+      responses:
+        "200":
+          description: Signed up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      utilisateur_id: { type: string }
+                      tokens: { $ref: "#/components/schemas/AuthTokens" }
+        "400":
+          description: Bad request
+          content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } }
+  /auth/login:
+    post:
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Logged in
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
+      responses:
+        "200": { description: Refreshed }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Logged out }
+  /users/me:
+    get:
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Me } }
+    put:
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UserMeUpdate" } } }
+      responses: { "200": { description: Updated } }
+  /users/me/experience-digitale:
+    put:
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ExperienceDigitaleUpdate" } } }
+      responses: { "200": { description: Upserted } }
+  /users/me/experience-sportive:
+    put:
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ExperienceSportiveUpdate" } } }
+      responses: { "200": { description: Upserted } }
+  /users/me/consents:
+    get:
+      tags: [Consents]
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: List consents } }
+    post:
+      tags: [Consents]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ConsentPost" } } }
+      responses: { "200": { description: Created } }
+  /bilans/tests-definition:
+    get:
+      tags: [Bilans]
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Definitions } }
+  /bilans:
+    post:
+      tags: [Bilans]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/BilanCreate" } } }
+      responses: { "200": { description: Created bilan } }
+  /programmes/generate:
+    post:
+      tags: [Programmes]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ProgrammeGenerate" } } }
+      responses: { "200": { description: Programme created } }
+  /programmes/{id}:
+    get:
+      tags: [Programmes]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses: { "200": { description: Programme detail } }
+  /seances/{id}:
+    get:
+      tags: [Seances]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses: { "200": { description: Seance detail } }
+  /seances/{id}/feedback:
+    post:
+      tags: [Seances]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/FeedbackCreate" } } }
+      responses: { "200": { description: Feedback + adaptation } }
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Aggregated dashboard } }
+  /exercices:
+    get:
+      tags: [Exercices]
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: List exercises } }
+    post:
+      tags: [Exercices]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ExerciceUpsert" } } }
+      responses: { "200": { description: Created } }
+  /exercices/{id}:
+    put:
+      tags: [Exercices]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ExerciceUpsert" } } }
+      responses: { "200": { description: Updated } }
+    delete:
+      tags: [Exercices]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses: { "200": { description: Deleted } }
+  /alerts:
+    get:
+      tags: [Alerts]
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: List alerts } }
+  /alerts/{id}:
+    put:
+      tags: [Alerts]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                statut: { type: string }
+                details: { type: string }
+      responses: { "200": { description: Updated alert } }
+  /notifications:
+    get:
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: List notifications } }
+  /notifications/{id}:
+    put:
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lu: { type: boolean }
+      responses: { "200": { description: Updated notification } }
+security:
+  - bearerAuth: []
